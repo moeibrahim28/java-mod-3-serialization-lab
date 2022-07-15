@@ -1,28 +1,27 @@
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.List;
 
 public class FileIORunner {
     public static void main(String[] args) throws IOException {
-        //writeToFile("person.csv", "example of writing data to file");
+        // writeToFile("person.csv", "example of writing data to file");
         UserOutputService userOutputService = new SysoutUserOutputService();
         try (UserInputService userInputService = new ScannerUserInputService(userOutputService)) {
             boolean runValue = true;
             PersonListBuilderService personListBuilderService = new PersonListBuilderService(userInputService);
 
-            //Ask user if they want to restore a list if not create one
+            // Ask user if they want to restore a list if not create one
             String fileName = userInputService.askUserAboutFile();
+            int extensionChoice = getFileExtenion(userInputService);
             String verifiedFileName;
             String fileExtension = "";
 
-
             // check validity of file name and get a verified filename
             if (!fileName.isBlank()) {
-                int extensionChoice = getFileExtenion(userInputService);
+
 
                 String nonBlankName = "";
                 switch (extensionChoice) {
@@ -36,31 +35,52 @@ public class FileIORunner {
                         System.out.println("Invalid input. Choose one of the following options:");
                         extensionChoice = getFileExtenion(userInputService);
                 }
-            verifiedFileName= personListBuilderService.readFromFile(fileName,fileExtension);
 
-            } else {
-                String newFileName = userInputService.getUserInput("Please give the name of this new file. It will be made a .csv file by the system.");
+                // load for csv file
+                if (fileExtension.equals(".csv")) {
+                    personListBuilderService.readFromCSV(fileName, fileExtension);
+                    verifiedFileName=fileName;
+                }
 
-                newFileName = newFileName + ".csv";
+                // load json file
+                else {
+                    personListBuilderService.verifyFile(personListBuilderService.getNewFileName(), ".json");
+                    verifiedFileName=fileName;
+                    personListBuilderService.readPersonListFromJSON(fileName+ ".json");
+
+                }
+            }
+            // get new file name and repeat
+            else {
+                String newFileName = userInputService.getUserInput(
+                        "Please give the name of this new file. It will be made a .csv file or .json file by the system.");
+                extensionChoice = getFileExtenion(userInputService);
+                newFileName = newFileName + extensionChoice;
                 verifiedFileName = newFileName;
             }
 
-            //loops for asking user to pick an action
+            // loops for asking user to pick an action
             while (runValue) {
                 UserOutputService userChoiceOutputService = new SysoutUserOutputService();
                 UserInputService userChoiceInputService = new ScannerUserInputService(userChoiceOutputService);
                 int userChoice = getUserAction(userChoiceInputService);
                 switch (userChoice) {
                     case 1:
-                        personListBuilderService.addPersonToList(verifiedFileName);
+                        personListBuilderService.addPersonToList(verifiedFileName,fileExtension);
                         break;
                     case 2:
-                        personListBuilderService.printFromFile(verifiedFileName, true);
+                        if(fileExtension.equals(".csv")) {
+                            personListBuilderService.printFromFile(verifiedFileName + fileExtension, true);
+                        }
+                        else{
+                            personListBuilderService.printJson(personListBuilderService.getPersonList());
+                        }
                         break;
                     case 3:
                         runValue = false;
-                        savePersonListJSON(verifiedFileName.substring(0,verifiedFileName.length() - 4)+".json", personListBuilderService.getPersonList());
-                        printPersonListAsJSON(personListBuilderService.getPersonList());
+                        savePersonListCSV(verifiedFileName, fileExtension, personListBuilderService.getPersonList());
+                        personListBuilderService.writeJson(personListBuilderService.getPersonList(),verifiedFileName);
+
                         break;
                     default:
                         System.out.println("Invalid input. Choose one of the following options:");
@@ -72,14 +92,31 @@ public class FileIORunner {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+//        Person preSerializedStudent;
+//        if (printPersonListAsJSON().size() == 0) {
+//            preSerializedStudent = new Student("Example", "Student", 1);
+//        }
+//        preSerializedStudent = studentList.get(0);
+//        serializeObject(preSerializedStudent);
+//
+//        Student deserializedStudent = (Student) deserializeObject();
+//
+//        System.out.println("Let's compare the toStrings of our two Students");
+//        System.out.println(preSerializedStudent.toString());
+//        System.out.println(deserializedStudent.toString());
+//        System.out.println("\n Now are these the exact same object? Hashcodes:");
+//        System.out.println(preSerializedStudent.hashCode());
+//        System.out.println(deserializedStudent.hashCode());
 
 
     }
 
 
-    //ask user if they want to add a person, print, or exit
+
+    // ask user if they want to add a person, print, or exit
     static int getUserAction(UserInputService userInputService) {
-        int choice = userInputService.getUserInputInt("What would you like to do?\n1. Add a person to the list.\n2. Print the list of current people.\n3. Exit the program.");
+        int choice = userInputService.getUserInputInt(
+                "What would you like to do?\n1. Add a person to the list.\n2. Print the list of current people.\n3. Exit the program.");
         return choice;
     }
 
@@ -88,18 +125,40 @@ public class FileIORunner {
         return fileExtension;
     }
 
-    //print each person in JSON format
+    // print each person in JSON format
     static void printPersonListAsJSON(List<Person> personList) throws Exception {
         String json = new ObjectMapper().writeValueAsString(personList);
         System.out.println(json);
-}
-
-
-    //save to json file
-    static void savePersonListJSON(String fileName, List<Person> personList) throws Exception {
-        String allPersonsAsJSON = new ObjectMapper().writeValueAsString(personList);
-        writeToFile(fileName, allPersonsAsJSON);
     }
+
+    // save to json file
+    static void savePersonListCSV(String fileName, String fileExtension, List<Person> personList) throws Exception {
+        StringBuffer allPersonsAsCSV = new StringBuffer();
+        if(fileExtension.equals(".csv")){
+            personList.forEach((person) -> {
+            String personString = person.formatAsCSV();
+            allPersonsAsCSV.append(personString + "\n");
+        });
+        writeToFile(fileName,allPersonsAsCSV.toString());
+        printPersonListAsJSON(personList);
+    }
+    else {
+            personList.stream().map(person -> "").forEach(personString -> {
+                try {
+                    String json = new ObjectMapper().writeValueAsString(personList);
+                    allPersonsAsCSV.append(json);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    writeToFile(fileName, allPersonsAsCSV.toString());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
+    }
+
 
 
     static void writeToFile(String fileName, String text) throws IOException {
@@ -114,5 +173,7 @@ public class FileIORunner {
                 fileWriter.close();
         }
     }
+
+
 
 }

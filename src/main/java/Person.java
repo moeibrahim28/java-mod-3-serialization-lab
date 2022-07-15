@@ -1,6 +1,4 @@
-import java.io.Serializable;
-
-public class Person implements Serializable{
+public class Person {
     private String firstName;
     private String lastName;
     private int birthYear;
@@ -13,6 +11,10 @@ public class Person implements Serializable{
         this.birthYear = birthYear;
         this.birthMonth = birthMonth;
         this.birthDay = birthDay;
+    }
+
+    public Person(){
+
     }
 
     public Person(String personCSV) {
