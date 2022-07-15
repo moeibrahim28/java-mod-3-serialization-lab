@@ -1,6 +1,10 @@
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -50,6 +54,7 @@ public class PersonListBuilderService {
             while (fileReader.hasNextLine()) {
                 thisLine = fileReader.nextLine();
                 Person person = new Person(thisLine);
+                serializePerson(person);
                 personList.add(person);
             }
 
@@ -103,6 +108,40 @@ public class PersonListBuilderService {
             if (fileWriter != null)
                 fileWriter.close();
         }
+    }
+
+    void serializePerson(Person person) throws IOException {
+        ObjectOutputStream personObjectStream = null;
+        try {
+            FileOutputStream personFile = new FileOutputStream("person.dat");
+            personObjectStream = new ObjectOutputStream(personFile);
+            personObjectStream.writeObject(person);
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        } finally {
+            if (personObjectStream != null) {
+                personObjectStream.flush();
+                personObjectStream.close();
+            }
+        }
+    }
+
+    Person deserializePerson() throws IOException {
+        ObjectInputStream personInputStream = null;
+        Person newPerson = null;
+        try {
+            FileInputStream personFile = new FileInputStream("person.dat");
+            personInputStream = new ObjectInputStream(personFile);
+            newPerson = (Person) personInputStream.readObject();
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        } finally {
+            if (personInputStream != null) {
+                personInputStream.close();
+            }
+        }
+
+        return newPerson;
     }
 
 }
